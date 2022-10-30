@@ -1,0 +1,100 @@
+---
+title: "homework_6"
+author: "Daniel Kasper"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Task 1 - GDP of Denmark throughout the years
+
+1.	Define a defensive function that calculates the Gross Domestic Product of a nation from the data available in the gapminder dataset. You can use the population and GDPpercapita columns for it. Using that function, calculate the GDP of Denmark in the following years: 1967, 1977, 1987, 1997, 2007, and 2017.
+
+```{r GDP of Denmark}
+
+# We load the package with install.packages and access it with library
+#install.packages("gapminder")
+library(gapminder)
+
+# We then use the head function to inspect our dataframe
+head(gapminder)
+
+# We then use a function to calculate the Gross Domestic Product of a nation
+
+calcGDP <- function(data, year=NULL, country=NULL) { # We create a function with 3 parameters where year and country default is null
+  if(!is.null(year)) { # with the ! we check if the year is not null then find given year and return it.
+    data <- data[data$year %in% year, ]  # We then check whether year is included in the dataframe with %in%
+  }
+  if (!is.null(country)) { # Same story here, just with the column country in our dataset
+    data <- data[data$country %in% country,]
+  }
+  gdp <- data$pop * data$gdpPercap # We then define gdp as a variable by multiplying population with gdpPerCapita
+
+  new <- cbind(data, gdp=gdp) # With cbind we create a new column for our dataset
+  return(new)
+}
+
+# We can then use our function to call specific years or country names to a tibble with the parameters we created earlier.
+
+head(calcGDP(gapminder, country = "Denmark"))
+
+
+```
+## Task 1 Answers
+
+The GDP of Denmark in the following years are:
+
+* GDP of Denmark 1967: 77116977700
+* GDP of Denmark 1977: 103920280028
+* GDP of Denmark 1987: 128771236166
+* GDP of Denmark 1997: 157476118456
+* GDP of Denmark 2007: 192906627081
+* GDP of Denmark 2017: NULL (not contained in our dataset)
+
+## Task 2 - Life Expectancy of countries starting with "B"
+
+2.	Write a script that loops over each country in the gapminder dataset, tests whether the country starts with a ‘B’ , and prints out whether the life expectancy is smaller than 50, between 50 and 70, or greater than 70. (Hint: remember the grepl function, and review the Control Flow tutorial)
+
+```{r country loops}
+
+low_life <- 50 # creating a threshold of the low life expectancy, 
+high_life <- 70
+
+countriesWithB <- grep("^B", unique(gapminder$country), value = TRUE) # We use the grepl function and ^B to find all unique countries starting with B 
+for (country in countriesWithB) { #loop over the countries starting with "B"
+    current_country <- gapminder[gapminder$country == country, ] # We pick out the countries from our dataset
+    average_life <- mean(current_country$lifeExp, na.rm = TRUE) # We create a variable which contains the mean of the life expectancy
+   
+  
+  if(average_life < low_life) {
+    cat("Average life expectancy in", country, "is less than", low_life, "\n") 
+  } else if(average_life > low_life && average_life < high_life) {
+    cat("Average life expectancy in", country, "is between", low_life, "and", high_life, "\n")
+  } else {
+    cat("Average life expectancy in", country, "is greater than", high_life, "\n") # We use cat to print the function output
+  }
+  rm(average_life) # And removing the tmp to create same procedure for next country
+}
+
+```
+
+## Task 2 Answers
+
+The code from task 2 should output the life expantancies of countries starting with B.
+I have also copied what the code produces when run here:
+
+* Average life expectancy in Bahrain is between 50 and 70 
+* Average life expectancy in Bangladesh is less than 50 
+* Average life expectancy in Belgium is greater than 70 
+* Average life expectancy in Benin is less than 50 
+* Average life expectancy in Bolivia is between 50 and 70 
+* Average life expectancy in Bosnia and Herzegovina is between 50 and 70 
+* Average life expectancy in Botswana is between 50 and 70 
+* Average life expectancy in Brazil is between 50 and 70 
+* Average life expectancy in Bulgaria is between 50 and 70 
+* Average life expectancy in Burkina Faso is less than 50 
+* Average life expectancy in Burundi is less than 50 
+
