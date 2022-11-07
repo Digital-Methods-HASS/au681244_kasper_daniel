@@ -1,0 +1,131 @@
+---
+title: "Language Statistics"
+author: "Daniel Kasper"
+date: "`r Sys.Date()`"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+
+# Disclaimer
+
+In this task I chose to try and play around with the conversion of datatypes, how to webscrape and how to vizualise the data gathered. The task solved is not very pretty since it is a first attempt. With longer work-hours and more reading on GGplots syntax, better vizualisations could be made. Keep that in mind when looking at the results. 
+
+## Loading the packages
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(rvest)
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(janitor)
+
+
+```
+
+## Using the webscraper on 2 different URLs
+
+
+```{r url}
+url <- "https://www.worldometers.info/world-population/population-by-country/"
+# scrape the website
+url_html <- read_html(url)
+
+
+url2 <- "http://www2.harpercollege.edu/mhealy/g101ilec/intro/clt/cltclt/top100.html"
+url_html2 <- read_html(url2)
+
+```
+
+## Converting the data to tables
+
+```{r url-head}
+whole_table <- url_html %>% 
+ html_nodes("table") %>%
+ html_table()  #str(whole_table) turns out to be a list
+head(whole_table)
+
+
+
+whole_table2 <- url_html2 %>%
+	html_nodes("table") %>%
+	html_table()
+head(whole_table2)
+
+
+```
+## Converting tables to strings
+
+```{r to table}
+new_table <- do.call(cbind,unlist(whole_table, recursive = FALSE)) 
+head(new_table) # ok, looks good, too bad it took 2 hours
+
+new_table2 <- do.call(cbind,unlist(whole_table2, recursive = FALSE))
+head(new_table2)
+
+```
+
+
+## Making a merged dataframe of the 2 scraped websites
+
+Wrote
+
+```{r join colummns from tables}
+
+df <- as.data.frame(whole_table)
+df2 <- as.data.frame(whole_table2)
+
+joined_df <- merge(x=df, y=df2,by=NULL)
+
+head(joined_df)
+
+#write_csv(df,"data/population.csv")
+#write_csv(df2,"data/language.csv")
+ 
+```
+
+## Converting chr strings and making vizualisations
+
+Here I tried to properly convert the different datatypes which i had gathered so future vizualisations could benefit of this. I could have made a loop to ease the task but it was only 4 columns that needed to be converted.
+
+Then I make a subset filter for checking which Languages are the most prominent in India by their population.
+
+
+```{r language distribution in India}
+library(ggplot2)
+library(ggridges)
+
+language_data <- read.csv("data/language.csv")
+
+data <- language_data %>% 
+	mutate(X4 = as.character(X4))  %>% 
+	rename(Population = "X4") 
+
+data2 <- data %>%
+	mutate(X2 = as.character(X2)) %>%
+	rename(LanguageName = "X2")
+
+data3 <- data2 %>%
+	mutate(X3 = as.character(X3)) %>%
+	rename(PrimaryCountry = "X3")
+
+
+data4 <- data3 %>%
+	mutate(X1 = as.character(X1)) %>%
+	rename(Rank = "X1")
+
+language<- data4 %>%  filter(!row_number() %in% c(1))
+
+
+languages_spoken <- language %>% 
+  select(LanguageName, PrimaryCountry, Population, Rank) %>% 
+  filter(PrimaryCountry == 'India') %>% 
+  filter(!is.na(Population))
+
+ggplot(data=languages_spoken, aes(x=Population,y=LanguageName)) + geom_col(color="blue", fill = "red") + theme(axis.text.x = element_text(angle = 90))
+
+```
+
