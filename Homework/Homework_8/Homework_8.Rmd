@@ -1,0 +1,200 @@
+---
+title: "Homework_8"
+author: "Daniel Kasper"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 1) Reproduce the code in the repository and extend it following the suggestion (e.g., assess and consider the sentiment in the Game of Thrones) or your own body of text
+
+I chose to analyze the Game of Thrones text, which is located in the data folder attached to this assignment
+
+```{r libraries, echo = FALSE}
+
+# We start by loading the libraries needed for capturing and processing the text
+
+library(tidyverse)
+library(here)
+library(pdftools)
+library(tidytext)
+library(textdata) 
+library(ggwordcloud)
+
+
+
+```
+
+## Getting the text
+
+In this part we load the chosen PDF with our aquired libraries. It should be noted that PDF's that are not digitally native might be impossible to load in, since characters in the document can't be read.
+
+```{r get-text}
+# Here we save our text as a variable with the here() function
+got_location <- here("data","got.pdf")
+got_text <- pdf_text(got_location)
+```
+
+## Wrangling the text
+
+```{r organize-lines, echo= FALSE}
+
+got_df <- data.frame(got_text) %>% # we convert our text-variable into a dataframe
+  mutate(text_full = str_split(got_text, pattern = '\\n')) %>%  # we use str_split to split the pages
+  unnest(text_full) %>%  # Then we unnest it onto regular columns
+  mutate(text_full = str_trim(text_full)) # We trim the whitespace with str_trim()
+
+got_df
+
+```
+
+## Get words as different tokens
+
+We need to tokenize the words to make the processing easier
+
+```{r tokenize, echo = FALSE}
+
+got_tokens <- got_df %>% 
+  unnest_tokens(word, text_full) # With unnest_tokens each word has its own row
+
+got_tokens
+
+```
+## Counting the words
+
+Now that the text is tokenized, we make a function that can properly count the words in the text.
+
+```{r word-count} 
+
+wordcount_got <- got_tokens %>%  # States that the variable should use information from our token variable
+  count(word) %>%  # Count each word 
+  arrange(-n) # Arrange their order by occurence
+wordcount_got # We call our variable
+
+```
+
+## Removing stopwords
+
+The results show that a lot of our top words are common English words such as: The, and, to, a...
+We can't use them since they do not contain a lot of opportunity for analysis, so we will remove them using a preloaded stopword package and count the words again.
+
+
+```{r rmv-stopwords}
+
+got_stop <- got_tokens %>%  # Call our tokens to sort out the words we don't want included in our dataset
+  anti_join(stop_words) %>%  # Remove the stopwords with the anti_join function using stop_words data
+  select(-got_text) #Here we select our text to comparison
+
+got_swc <- got_stop %>% # Same procedure again as last chunk of code where we count the words.
+  count(word) %>% 
+  arrange(-n)
+
+got_swc # we call our variable to see the new created tibble
+
+```
+## Converting the numerical values
+
+So we got rid of all the undesired, non-exciting words. Now we have to redefine the data for our future vizualisation. If we were to put the data into a ggplot function now, all words would be displayed as values. For example, the word "Lord" would be displayed as 1341 since it is the occurence of the word.
+
+```{r non-numeric}
+
+got_no_numeric <- got_stop %>% 
+  filter(is.na(as.numeric(word)))
+
+length(unique(got_no_numeric$word)) # We then check the length of unique words in our new variable
+
+```
+The length is over 11.000 unique words, so we will have to shorten it in our visualization to make something comprehensible.
+
+
+## Vizualizing the text-data
+
+Now, for vizualisation we can create a wordcloud to display the prominence of the words in the Game of Thrones text.
+We will start with creating a variable with the 200 most occuring words in the Game of Thrones PDF
+
+```{r wordcloud}
+
+got_top200 <- got_no_numeric %>% # We make a variable in which the 200 most occurring words are chosen
+  count(word) %>% 
+  arrange(-n) %>% 
+  head(200) # Specifying the number for our tibble
+
+# We then use wordcloud recipe from the GGplot package to create a cool visualization.
+
+ggplot(data = got_top200, aes(label = word, size = n)) +
+  geom_text_wordcloud_area(aes(color = n), shape = "circle") +
+  scale_size_area(max_size = 16) +
+  scale_color_gradient(low = "darkblue", high = "lightblue") + # I used the darkblue and lightblue contrast because it seemed fitting to the storys themes about winter and the cold.
+  theme_minimal()
+
+
+```
+So by visualizing the words by top 200 occurrences we now have a point of interpretation for our analysis. Clearly the Stark and Lannister family are heavily mentioned with the large number of occurrences of Jon, Ned, Catelyn, Tyrion. Also, a curious observation is the mentioning of titles like: Lord, Ser, King which suggests that an important aspect of the story is the dynamics of the different titles and houses in the story.
+
+## Sentiment analysis of Game of Thrones
+
+We can also explore the sentiment of the different words in Game of Thrones, using the afinn package. In the chunk below, the afinn package is loaded in. Here you can change the list for what sentiment score you'd like to see from -5 to +5. As Adela suggested, it is probably for the best if we do not check the words listed as -5
+
+```{r afinn-package}
+
+get_sentiments(lexicon = "afinn") # Downloading the lexicon package
+
+afinn_pos <- get_sentiments("afinn") %>% 
+  filter(value %in% c(3,4,5)) # Choosing the sentiment scores
+afinn_pos
+
+```
+Okay, so let us try to apply it to our Game of thrones data.
+
+## Binding the stopwords to the lexicon
+
+```{r binding}
+got_afinn <- got_stop %>%  
+  inner_join(get_sentiments("afinn"))
+```
+## Creating an overview of our words
+
+We then create a count of our newly bound words and plot to in to see the distribution of word connotations.
+
+```{r count-afinn}
+got_afinn_hist <- got_afinn %>% 
+  count(value) # Counting the words and assigning them a sentiment score
+
+# We make a simple plot to see the occurrences: 
+ggplot(data = got_afinn_hist, aes(x = value, y = n)) +
+  geom_col()
+```
+Okay, so we can use the following code to specify our values further. Let's take a look at -2 since it has the highest prominence.
+
+```{r afinn-2}
+
+got_afinn_minus2 <- got_afinn %>% 
+  filter(value == -2) # We filter the -2 values and save it as a variable.
+
+unique(got_afinn_minus2$word) # We count the unique occurences
+
+# we count & plot them
+got_afinn_minus2_n <- got_afinn_minus2 %>% 
+  count(word, sort = TRUE) %>% 
+  mutate(word = fct_reorder(factor(word), n))
+  head(50) # I tried to sample a smaller size since the number of results messes with my vizualisation
+
+ggplot(data = got_afinn_minus2_n, aes(x = word, y = n)) + # This one was definitely tougher to visualize so feedback here is appreciated.
+  geom_col() +
+  coord_flip()
+```
+
+```
+Since the visualization is hard to follow, I added an extra chunk where the variable got_afinn_minus2_n is just printed out.
+
+```{r print-afinn}
+
+print(got_afinn_minus2_n)
+
+```
+
+
+
